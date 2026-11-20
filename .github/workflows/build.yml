@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: vusb-local-${{ github.ref }}
+  group: vusb-local-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
