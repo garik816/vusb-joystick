@@ -73,7 +73,7 @@ arduino-cli compile --fqbn arduino:avr:uno --libraries ./libraries ./joystik
 
 ## Локальная сборка GitHub Actions (Windows 11)
 
-Workflow `.github/workflows/build.yml` работает **только на self-hosted Windows x64 runner**. Запускается при push в `feat/hid-gamepad-ps3-generic`, через Pull Request в `main` и вручную (`workflow_dispatch`).
+Workflow `.github/workflows/build.yml` работает **только на self-hosted Windows x64 runner**. Запускается при push в `feat/hid-gamepad-ps3-generic`, через Pull Request в `main` и вручную (`workflow_dispatch`) после появления workflow в основной ветке GitHub.
 
 Один job:
 - Проверяет HID-дескриптор и запускает C++ host-тесты (Python 3 + MSYS2 UCRT64 g++).
