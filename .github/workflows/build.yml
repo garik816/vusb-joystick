@@ -1,0 +1,29 @@
+name: USB HID joystick CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: HID descriptor consistency
+        run: python3 scripts/check_hid_descriptor.py
+      - name: Axis and button unit tests
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_logic.cpp -o /tmp/vusb-test
+          /tmp/vusb-test
+
+  avr-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: arduino/setup-arduino-cli@v2
+      - run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+      - name: Build ATmega328P / 16 MHz
+        run: arduino-cli compile --warnings all --fqbn arduino:avr:uno --libraries ./libraries ./joystik
