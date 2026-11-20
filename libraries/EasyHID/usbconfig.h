@@ -99,7 +99,7 @@ defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
 * The value is in milliamperes. [It will be divided by two since USB
 * communicates power requirements in units of 2 mA.]
 */
-#define USB_CFG_IMPLEMENT_FN_WRITE      1
+#define USB_CFG_IMPLEMENT_FN_WRITE      0
 /* Set this to 1 if you want usbFunctionWrite() to be called for control-out
 * transfers. Set it to 0 if you don't need it and want to save a couple of
 * bytes.
@@ -200,7 +200,7 @@ defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
 * own Vendor ID, define it here. Otherwise you may use one of obdev's free
 * shared VID/PID pairs. Be sure to read USB-IDs-for-free.txt for rules!
 */
-#define  USB_CFG_DEVICE_ID       0xdf, 0x05
+#define  USB_CFG_DEVICE_ID       0xdc, 0x27
 /* This is the ID of the product, low byte first. It is interpreted in the
 * scope of the vendor ID. If you have registered your own VID with usb.org
 * or if you have licensed a PID from somebody else, define it here. Otherwise
@@ -211,11 +211,11 @@ defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
 * with libusb: 0x16c0/0x5dc.  Use this VID/PID pair ONLY if you understand
 * the implications!
 */
-#define USB_CFG_DEVICE_VERSION  0x00, 0x01
+#define USB_CFG_DEVICE_VERSION  0x00, 0x02
 /* Version number of the device: Minor number first, then major number.
 */
-#define USB_CFG_VENDOR_NAME     'g', 'a', 'r', 'i', 'k'
-#define USB_CFG_VENDOR_NAME_LEN 5
+#define USB_CFG_VENDOR_NAME     'g', 'a', 'r', 'i', 'k', '8', '1', '6'
+#define USB_CFG_VENDOR_NAME_LEN 8
 /* These two values define the vendor name returned by the USB device. The name
 * must be given as a list of characters under single quotes. The characters
 * are interpreted as Unicode (UTF-16) entities.
@@ -224,8 +224,8 @@ defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
 * obdev's free shared VID/PID pair. See the file USB-IDs-for-free.txt for
 * details.
 */
-#define USB_CFG_DEVICE_NAME     'F', 'r', 'e', 'e', 'd', 'o', 'm', 'U', 'S', 'B'
-#define USB_CFG_DEVICE_NAME_LEN 10
+#define USB_CFG_DEVICE_NAME     'F', 'r', 'e', 'e', 'd', 'o', 'm', ' ', 'U', 'S', 'B', ' ', 'G', 'a', 'm', 'e', 'p', 'a', 'd'
+#define USB_CFG_DEVICE_NAME_LEN 19
 
 /* Same as above for the device name. If you don't want a device name, undefine
 * the macros. See the file USB-IDs-for-free.txt before you assign a name if
@@ -251,7 +251,7 @@ defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
 /* See USB specification if you want to conform to an existing device class or
 * protocol.
 */
-#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH    78
+#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH    75
 /* Define this to the length of the HID report descriptor, if you implement
 * an HID device. Otherwise don't define it or define it to 0.
 * If you use this define, you must add a PROGMEM character array named
