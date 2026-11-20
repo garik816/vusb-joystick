@@ -71,19 +71,17 @@ arduino-cli compile --fqbn arduino:avr:uno --libraries ./libraries ./joystik
 
 Если PS3 не распознаёт этот generic HID, дальнейший шаг — отдельная аппаратная платформа с нативным USB (например RP2040/RP2350) и реализация протокола, совместимого с конкретным типом PS3-контроллера. Просто подмена VID/PID или HID Usage эту задачу не решит.
 
-## Локальная сборка GitHub Actions (Windows 11)
+## GitHub Actions — сборка на GitHub-hosted runner
 
-Workflow `.github/workflows/build.yml` работает **только на self-hosted Windows x64 runner**. Запускается при push в `feat/hid-gamepad-ps3-generic`, через Pull Request в `main` и вручную (`workflow_dispatch`) после появления workflow в основной ветке GitHub.
+Сборка выполняется на **`ubuntu-latest` (GitHub-hosted)**, локальный компьютер и регистрация `self-hosted` раннера **не нужны**. Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
-Один job:
-- Проверяет HID-дескриптор и запускает C++ host-тесты (Python 3 + MSYS2 UCRT64 g++).
-- Ищет установленный Arduino CLI; если его нет, скачивает проверенную SHA256 версию 1.5.1 в постоянный каталог раннера. Arduino AVR core и MiniCore устанавливает **только при отсутствии**.
-- Собирает `ATmega8-16MHz` (`MiniCore:avr:8:clock=16MHz_external,bootloader=no_bootloader,BOD=2v7,LTO=Os_flto`) и `ATmega328P-16MHz` (`arduino:avr:uno`).
-- Публикует HEX, ELF (если создан) и `BUILD_INFO.txt` с SHA256 в **Actions → нужный запуск → Artifacts** (30 дней).
+- Проверка USB HID report descriptor и C++ unit-тестов на осях, кнопках и Hat Switch.
+- Автоматическая установка `arduino-cli`, `arduino:avr` и `MiniCore:avr` в изолированное окружение GitHub.
+- Сборка **ATmega8, 16 МГц, внешний кварц, без bootloader** по оригинальной KiCad-схеме, а также **ATmega328P, 16 МГц** для альтернативного микроконтроллера.
+- Отдельные `.hex` и `BUILD_INFO.txt` с SHA256 для каждой цели. Архив доступен в **Actions → Build Freedom USB Gamepad → запуск → Artifacts** (хранение 30 дней).
+- Запуск при push в эту ветку, для PR в `main`, а также вручную (`workflow_dispatch`, когда GitHub покажет workflow в Actions).
 
-**Регистрация на Windows-хосте:** существующий раннер, привязанный к иному репозиторию, не может запускать jobs данного репозитория. Для `garik816/vusb-joystick` откройте **Settings → Actions → Runners → New self-hosted runner → Windows/x64**. Установите новую копию раннера в отдельную директорию, например `C:\work\actions-runner-vusb` (не в `C:\work\actions-runner` другого проекта), выполните показанные GitHub команды загрузки и `config.cmd` с его одноразовым токеном, затем `run.cmd`. Достаточно стандартных labels: `self-hosted`, `Windows`, `X64`. Один физический ПК может выполнять несколько отдельных runner-процессов, по одному на репозиторий. Для запуска CI новый runner должен быть **Online / Idle**.
-
-**Ограничения:** сборка HEX не прошивает контроллер, не программирует fuse-биты и не доказывает совместимость с PS3. Проверьте требования питания/кварца перед прошивкой ATmega8. Не используйте ATmega328P HEX для ATmega8.
+**Важно:** собирайте и прошивайте HEX именно для установленного микроконтроллера. CI не программирует fuse-биты и не подтверждает реальную работу PS3. На ATmega8-16P питание 3,3 В при 16 МГц остаётся за пределами гарантированных параметров datasheet.
 
 ## Автоматические проверки
 
@@ -93,6 +91,6 @@ g++ -std=c++11 -Wall -Wextra -Werror tests/test_logic.cpp -o /tmp/vusb-test
 /tmp/vusb-test
 ```
 
-GitHub Actions собирает HEX для ATmega8 и ATmega328P на локальном Windows self-hosted раннере; физические тесты Windows/PS3 по-прежнему необходимы.
+GitHub Actions собирает HEX для ATmega8 и ATmega328P на GitHub-hosted Ubuntu; физические тесты Windows/PS3 по-прежнему необходимы.
 
 Третьесторонние лицензии EasyHID/V-USB оставлены в `libraries/EasyHID/`.

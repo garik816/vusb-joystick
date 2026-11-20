@@ -1,48 +1,106 @@
-name: Build Freedom USB Gamepad - local Windows
+name: Build Freedom USB Gamepad
+
 on:
   push:
-    branches: ["feat/hid-gamepad-ps3-generic"]
+    branches:
+      - feat/hid-gamepad-ps3-generic
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: vusb-local-${{ github.head_ref || github.ref_name }}
+  group: vusb-build-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  validate:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 35
-    defaults:
-      run:
-        shell: pwsh
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+      - name: Verify USB HID descriptor and report layout
+        run: python3 scripts/check_hid_descriptor.py
+      - name: Test axes, button encoding and D-pad hat
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_logic.cpp -o /tmp/vusb-joystick-test
+          /tmp/vusb-joystick-test
 
-      - name: Check HID descriptor and joystick unit tests
-        run: ./scripts/ci-windows-avr.ps1 -Phase test
+  avr-build:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
 
-      - name: Reuse existing Arduino CLI and AVR cores
-        run: ./scripts/ci-windows-avr.ps1 -Phase setup
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
 
-      - name: Compile ATmega8 and ATmega328P
-        run: ./scripts/ci-windows-avr.ps1 -Phase build
+      - name: Install Arduino AVR and MiniCore
+        env:
+          MINICORE_INDEX: https://mcudude.github.io/MiniCore/package_MCUdude_MiniCore_index.json
+        run: |
+          arduino-cli version
+          arduino-cli core update-index --additional-urls "$MINICORE_INDEX"
+          arduino-cli core install arduino:avr
+          arduino-cli core install MiniCore:avr --additional-urls "$MINICORE_INDEX"
+          arduino-cli core list
 
-      - name: Publish HEX and checksums
-        if: always()
+      - name: Build ATmega8 16 MHz - actual KiCad board
+        run: |
+          mkdir -p dist/ATmega8-16MHz
+          arduino-cli compile \
+            --warnings all \
+            --fqbn "MiniCore:avr:8:clock=16MHz_external,bootloader=no_bootloader,BOD=2v7,LTO=Os_flto" \
+            --libraries "$GITHUB_WORKSPACE/libraries" \
+            --output-dir "$GITHUB_WORKSPACE/dist/ATmega8-16MHz" \
+            "$GITHUB_WORKSPACE/joystik"
+
+      - name: Build ATmega328P 16 MHz - alternative hardware
+        run: |
+          mkdir -p dist/ATmega328P-16MHz
+          arduino-cli compile \
+            --warnings all \
+            --fqbn "arduino:avr:uno" \
+            --libraries "$GITHUB_WORKSPACE/libraries" \
+            --output-dir "$GITHUB_WORKSPACE/dist/ATmega328P-16MHz" \
+            "$GITHUB_WORKSPACE/joystik"
+
+      - name: Verify HEX output and record SHA256
+        run: |
+          set -euo pipefail
+          for target in ATmega8-16MHz ATmega328P-16MHz; do
+            build_dir="dist/$target"
+            mapfile -d '' hex_files < <(find "$build_dir" -maxdepth 1 -name '*.hex' -type f -print0)
+            if [ "${#hex_files[@]}" -eq 0 ]; then
+              echo "::error::No HEX generated for $target"
+              exit 1
+            fi
+            {
+              echo "Firmware: Freedom USB Gamepad v2.0.0"
+              echo "Target: $target"
+              echo "Commit: $GITHUB_SHA"
+              echo "Built by: GitHub-hosted ubuntu-latest"
+              echo "Programming: ISP. No fuse/flash operations performed in CI."
+              echo "SHA256:"
+              for hex_file in "${hex_files[@]}"; do
+                sha256sum "$hex_file"
+              done
+            } > "$build_dir/BUILD_INFO.txt"
+            cat "$build_dir/BUILD_INFO.txt"
+          done
+
+      - name: Upload firmware HEX and build metadata
         uses: actions/upload-artifact@v6
         with:
-          name: FreedomUSB-v2.0.0-${{ github.run_number }}-Windows
+          name: FreedomUSB-v2.0.0-${{ github.run_number }}-AVR
           path: |
             dist/**/*.hex
-            dist/**/*.elf
             dist/**/*.eep
             dist/**/BUILD_INFO.txt
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
