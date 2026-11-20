@@ -1,29 +1,48 @@
-name: USB HID joystick CI
-
+name: Build Freedom USB Gamepad - local Windows
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: ["feat/hid-gamepad-ps3-generic"]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vusb-local-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  host-tests:
-    runs-on: ubuntu-latest
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
     steps:
-      - uses: actions/checkout@v5
-      - name: HID descriptor consistency
-        run: python3 scripts/check_hid_descriptor.py
-      - name: Axis and button unit tests
-        run: |
-          g++ -std=c++11 -Wall -Wextra -Werror tests/test_logic.cpp -o /tmp/vusb-test
-          /tmp/vusb-test
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-  avr-compile:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: arduino/setup-arduino-cli@v2
-      - run: |
-          arduino-cli core update-index
-          arduino-cli core install arduino:avr
-      - name: Build ATmega328P / 16 MHz
-        run: arduino-cli compile --warnings all --fqbn arduino:avr:uno --libraries ./libraries ./joystik
+      - name: Check HID descriptor and joystick unit tests
+        run: ./scripts/ci-windows-avr.ps1 -Phase test
+
+      - name: Reuse existing Arduino CLI and AVR cores
+        run: ./scripts/ci-windows-avr.ps1 -Phase setup
+
+      - name: Compile ATmega8 and ATmega328P
+        run: ./scripts/ci-windows-avr.ps1 -Phase build
+
+      - name: Publish HEX and checksums
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: FreedomUSB-v2.0.0-${{ github.run_number }}-Windows
+          path: |
+            dist/**/*.hex
+            dist/**/*.elf
+            dist/**/*.eep
+            dist/**/BUILD_INFO.txt
+          if-no-files-found: warn
+          retention-days: 30
